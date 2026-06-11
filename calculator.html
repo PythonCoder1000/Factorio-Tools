@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Factorio Production Calculator – Space Age</title>
+  <style>
+    :root {
+      --bg: #1a1a1a;
+      --panel: #252525;
+      --panel2: #2a2a2a;
+      --border: #3a3a3a;
+      --orange: #e07b39;
+      --orange-dark: #8b4a18;
+      --text: #d0c8b0;
+      --dim: #888;
+      --green: #5a8a3a;
+      --warn: #8a7a2a;
+      --red: #8a3a3a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; font-size: 14px; min-height: 100vh; }
+
+    header {
+      background: var(--panel);
+      border-bottom: 2px solid var(--orange-dark);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    header h1 { font-size: 17px; color: var(--orange); letter-spacing: 1.5px; font-weight: 700; }
+    header span { color: var(--dim); font-size: 12px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      height: calc(100vh - 46px);
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      padding: 14px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: var(--orange);
+      border-bottom: 1px solid var(--orange-dark);
+      padding-bottom: 5px;
+      margin-bottom: 10px;
+    }
+
+    .field-label {
+      font-size: 11px;
+      color: var(--dim);
+      margin-bottom: 3px;
+      margin-top: 10px;
+    }
+    .field-label:first-of-type { margin-top: 0; }
+
+    input[type=text], input[type=number], select {
+      width: 100%;
+      background: #111;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 9px;
+      border-radius: 4px;
+      font-size: 13px;
+      outline: none;
+    }
+    input:focus, select:focus { border-color: var(--orange); }
+
+    .rate-row { display: grid; grid-template-columns: 1fr 100px; gap: 6px; }
+
+    .btn {
+      width: 100%;
+      background: var(--orange-dark);
+      border: 1px solid var(--orange);
+      color: #eee;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: background .15s;
+    }
+    .btn:hover { background: var(--orange); color: #111; }
+
+    /* autocomplete dropdown */
+    .ac-wrap { position: relative; }
+    .ac-drop {
+      position: absolute;
+      top: 100%;
+      left: 0; right: 0;
+      background: #111;
+      border: 1px solid var(--orange);
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 200;
+      display: none;
+    }
+    .ac-opt {
+      padding: 6px 9px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .ac-opt:hover { background: var(--orange-dark); }
+
+    /* raw input tags */
+    .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+    .tag {
+      background: #333;
+      border: 1px solid #555;
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-size: 11px;
+      color: var(--dim);
+      cursor: pointer;
+    }
+    .tag:hover { border-color: var(--orange); color: var(--text); }
+
+    /* ── RESULTS ── */
+    .results { padding: 16px; overflow-y: auto; }
+
+    .empty {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--dim);
+      gap: 8px;
+    }
+    .empty .icon { font-size: 52px; opacity: .2; }
+
+    /* stat cards */
+    .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; }
+    .card .lbl { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+    .card .val { font-size: 20px; font-weight: 700; color: var(--orange); }
+    .card .unit { font-size: 11px; color: var(--dim); margin-left: 3px; }
+
+    /* tables */
+    .tbl-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 14px; }
+    .tbl-head { background: var(--panel2); padding: 8px 14px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--orange); border-bottom: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 6px 12px; font-size: 10px; font-weight: 600; letter-spacing: .5px; color: var(--dim); background: #1e1e1e; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 7px 12px; border-bottom: 1px solid #222; font-size: 12px; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #2e2e2e; }
+
+    .cnt { color: var(--orange); font-weight: 700; font-size: 14px; }
+    .ceil { color: var(--dim); font-size: 11px; margin-left: 3px; }
+
+    .badge {
+      display: inline-block;
+      background: #2e2e2e;
+      border: 1px solid #444;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 10px;
+      color: var(--dim);
+      margin-left: 5px;
+      white-space: nowrap;
+    }
+
+    .ok { color: #5a8a3a; }
+    .warn { color: #a8a030; }
+    .over { color: #a04030; }
+
+    .raw-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 14px; border-bottom: 1px solid #222; font-size: 12px; }
+    .raw-row:last-child { border-bottom: none; }
+    .raw-rate { color: var(--orange); font-weight: 600; }
+
+    .note { font-size: 11px; color: var(--dim); padding: 8px 14px; border-top: 1px solid var(--border); }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; height: auto; }
+      .cards { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚙ FACTORIO PRODUCTION CALCULATOR</h1>
+  <span>Space Age Edition</span>
+</header>
+
+<div class="layout">
+
+  <!-- ── SIDEBAR ── -->
+  <div class="sidebar">
+
+    <div>
+      <div class="section-label">Target Output</div>
+
+      <div class="field-label">Item to produce</div>
+      <div class="ac-wrap">
+        <input type="text" id="itemInput" placeholder="Search items…" autocomplete="off">
+        <div class="ac-drop" id="itemDrop"></div>
+      </div>
+      <input type="hidden" id="itemId">
+
+      <div class="field-label">Rate</div>
+      <div class="rate-row">
+        <input type="number" id="rate" value="60" min="0.001" step="any">
+        <select id="rateUnit">
+          <option value="60">/ min</option>
+          <option value="1">/ sec</option>
+          <option value="3600">/ hour</option>
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Machines</div>
+
+      <div class="field-label">Assembler tier</div>
+      <select id="selAssembler">
+        <option value="asm1">Assembling Machine 1 (0.5×)</option>
+        <option value="asm2">Assembling Machine 2 (0.75×)</option>
+        <option value="asm3" selected>Assembling Machine 3 (1.25×)</option>
+      </select>
+
+      <div class="field-label">Furnace type</div>
+      <select id="selFurnace">
+        <option value="stoneFurnace">Stone Furnace (1×, coal)</option>
+        <option value="steelFurnace">Steel Furnace (2×, coal)</option>
+        <option value="electricFurnace" selected>Electric Furnace (2×)</option>
+        <option value="foundry">Foundry (4×, Space Age)</option>
+      </select>
+    </div>
+
+    <div>
+      <div class="section-label">Logistics</div>
+
+      <div class="field-label">Belt type</div>
+      <select id="selBelt">
+        <option value="15">Yellow Belt — 15 items/s</option>
+        <option value="30" selected>Red Belt — 30 items/s</option>
+        <option value="45">Blue Belt — 45 items/s</option>
+        <option value="60">Turbo Belt — 60 items/s</option>
+      </select>
+
+      <div class="field-label">Inserter type</div>
+      <select id="selInserter">
+        <option value="0.83">Inserter — 0.83/s</option>
+        <option value="2.31" selected>Fast Inserter — 2.31/s</option>
+        <option value="13.8">Stack Inserter — 13.8/s</option>
+        <option value="27.7">Bulk Inserter — 27.7/s</option>
+      </select>
+    </div>
+
+    <div>
+      <div class="section-label">Provided Inputs</div>
+      <div style="font-size:11px;color:var(--dim);margin-bottom:8px">Items listed here are treated as raw inputs — their production chains won't be expanded.</div>
+      <div class="tags" id="rawTags"></div>
+      <div class="field-label">Add item as input</div>
+      <div class="ac-wrap">
+        <input type="text" id="rawInput" placeholder="Search…" autocomplete="off">
+        <div class="ac-drop" id="rawDrop"></div>
+      </div>
+    </div>
+
+    <button class="btn" onclick="calculate()">▶ CALCULATE</button>
+
+  </div>
+
+  <!-- ── RESULTS ── -->
+  <div class="results" id="results">
+    <div class="empty">
+      <div class="icon">⚙</div>
+      <div>Select an item and press Calculate</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+//  MACHINE DEFINITIONS
+// ============================================================
+const MACHINES = {
+  asm1:           { name: 'Assembler 1',           speed: 0.5,  power: 75   },
+  asm2:           { name: 'Assembler 2',           speed: 0.75, power: 150  },
+  asm3:           { name: 'Assembler 3',           speed: 1.25, power: 375  },
+  stoneFurnace:   { name: 'Stone Furnace',         speed: 1.0,  power: 0    },
+  steelFurnace:   { name: 'Steel Furnace',         speed: 2.0,  power: 0    },
+  electricFurnace:{ name: 'Electric Furnace',      speed: 2.0,  power: 180  },
+  foundry:        { name: 'Foundry',               speed: 4.0,  power: 350  },
+  chemPlant:      { name: 'Chemical Plant',        speed: 1.25, power: 210  },
+  oilRefinery:    { name: 'Oil Refinery',          speed: 1.0,  power: 420  },
+  centrifuge:     { name: 'Centrifuge',            speed: 0.75, power: 350  },
+  rocketSilo:     { name: 'Rocket Silo',           speed: 1.0,  power: 4000 },
+  biochamber:     { name: 'Biochamber',            speed: 1.0,  power: 120  },
+  emPlant:        { name: 'Electromagnetic Plant', speed: 2.0,  power: 1250 },
+  cryoPlant:      { name: 'Cryogenic Plant',       speed: 1.25, power: 240  },
+};
+
+// Default machine key per recipe category
+const CAT_MACHINE = {
+  assembling: 'asm3',
+  smelting:   'electricFurnace',
+  chemistry:  'chemPlant',
+  oilProcessing: 'oilRefinery',
+  centrifuging:  'centrifuge',
+  rocket:        'rocketSilo',
+  biochamber:    'biochamber',
+  emPlant:       'emPlant',
+  cryoPlant:     'cryoPlant',
+};
+
+function getMachine(category) {
+  if (category === 'assembling') return MACHINES[document.getElementById('selAssembler').value];
+  if (category === 'smelting')   return MACHINES[document.getElementById('selFurnace').value];
+  return MACHINES[CAT_MACHINE[category]] || MACHINES.asm3;
+}
+
+// ============================================================
+//  RECIPE DATABASE
+//  Each entry: { name, category, time (s), ingredients [{item,amount}], products [{item,amount}], isFluid? }
+//  raw:true entries have no recipe (mined/pumped resources)
+// ============================================================
+const R = {
+  // ── RAW RESOURCES ──────────────────────────────────────────
+  'iron-ore':                 { name:'Iron Ore',                raw:true },
+  'copper-ore':               { name:'Copper Ore',              raw:true },
+  'coal':                     { name:'Coal',                     raw:true },
+  'stone':                    { name:'Stone',                    raw:true },
+  'uranium-ore':              { name:'Uranium Ore',             raw:true },
+  'crude-oil':                { name:'Crude Oil',               raw:true, isFluid:true },
+  'water':                    { name:'Water',                    raw:true, isFluid:true },
+  'wood':                     { name:'Wood',                     raw:true },
+  // Space Age raw
+  'calcite':                  { name:'Calcite',                  raw:true },
+  'tungsten-ore':             { name:'Tungsten Ore',             raw:true },
+  'holmium-ore':              { name:'Holmium Ore',              raw:true },
+  'fluorine':                 { name:'Fluorine',                 raw:true, isFluid:true },
+  'ice':                      { name:'Ice',                      raw:true },
+  'cryonite-rod':             { name:'Cryonite Rod',             raw:true },
+  'lithium-brine':            { name:'Lithium Brine',            raw:true, isFluid:true },
+  'ammonia':                  { name:'Ammonia',                  raw:true, isFluid:true },
+  'yumako':                   { name:'Yumako',                   raw:true },
+  'jellynut':                 { name:'Jellynut',                 raw:true },
+  'spoilage':                 { name:'Spoilage',                 raw:true },
+  'promethium-asteroid-chunk':{ name:'Promethium Asteroid Chunk',raw:true },
+  'iron-asteroid-chunk':      { name:'Iron Asteroid Chunk',      raw:true },
+  'copper-asteroid-chunk':    { name:'Copper Asteroid Chunk',    raw:true },
+  'carbon-asteroid-chunk':    { name:'Carbon Asteroid Chunk',    raw:true },
+
+  // ── SMELTING ───────────────────────────────────────────────
+  'iron-plate': {
+    name:'Iron Plate', category:'smelting', time:3.2,
+    ingredients:[{item:'iron-ore',amount:1}],
+    products:[{item:'iron-plate',amount:1}]
+  },
+  'copper-plate': {
+    name:'Copper Plate', category:'smelting', time:3.2,
+    ingredients:[{item:'copper-ore',amount:1}],
+    products:[{item:'copper-plate',amount:1}]
+  },
+  'steel-plate': {
+    name:'Steel Plate', category:'smelting', time:16,
+    ingredients:[{item:'iron-plate',amount:5}],
+    products:[{item:'steel-plate',amount:1}]
+  },
+  'stone-brick': {
+    name:'Stone Brick', category:'smelting', time:3.2,
+    ingredients:[{item:'stone',amount:2}],
+    products:[{item:'stone-brick',amount:1}]
+  },
+  // Space Age smelting (Foundry)
+  'tungsten-plate': {
+    name:'Tungsten Plate', category:'smelting', time:10,
+    ingredients:[{item:'tungsten-ore',amount:2},{item:'calcite',amount:1}],
+    products:[{item:'tungsten-plate',amount:1}]
+  },
+  'molten-iron': {
+    name:'Molten Iron', category:'smelting', time:32,
+    ingredients:[{item:'iron-ore',amount:4},{item:'calcite',amount:1}],
+    products:[{item:'molten-iron',amount:500}], isFluid:true
+  },
+  'molten-copper': {
+    name:'Molten Copper', category:'smelting', time:32,
+    ingredients:[{item:'copper-ore',amount:4},{item:'calcite',amount:1}],
+    products:[{item:'molten-copper',amount:500}], isFluid:true
+  },
+
+  // ── BASIC INTERMEDIATES ────────────────────────────────────
+  'iron-gear-wheel': {
+    name:'Iron Gear Wheel', category:'assembling', time:0.5,
+    ingredients:[{item:'iron-plate',amount:2}],
+    products:[{item:'iron-gear-wheel',amount:1}]
+  },
+  'copper-cable': {
+    name:'Copper Cable', category:'assembling', time:0.5,
+    ingredients:[{item:'copper-plate',amount:1}],
+    products:[{item:'copper-cable',amount:2}]
+  },
+  'electronic-circuit': {
+    name:'Electronic Circuit', category:'assembling', time:0.5,
+    ingredients:[{item:'iron-plate',amount:1},{item:'copper-cable',amount:3}],
+    products:[{item:'electronic-circuit',amount:1}]
+  },
+  'advanced-circuit': {
+    name:'Advanced Circuit', category:'assembling', time:6,
+    ingredients:[{item:'copper-cable',amount:4},{item:'electronic-circuit',amount:2},{item:'plastic-bar',amount:2}],
+    products:[{item:'advanced-circuit',amount:1}]
+  },
+  'processing-unit': {
+    name:'Processing Unit', category:'assembling', time:10,
+    ingredients:[{item:'electronic-circuit',amount:20},{item:'advanced-circuit',amount:2},{item:'sulfuric-acid',amount:5}],
+    products:[{item:'processing-unit',amount:1}]
+  },
+  'pipe': {
+    name:'Pipe', category:'assembling', time:0.5,
+    ingredients:[{item:'iron-plate',amount:1}],
+    products:[{item:'pipe',amount:1}]
+  },
+  'pipe-to-ground': {
+    name:'Pipe to Ground', category:'assembling', time:0.5,
+    ingredients:[{item:'pipe',amount:10},{item:'iron-plate',amount:5}],
+    products:[{item:'pipe-to-ground',amount:2}]
+  },
+  'engine-unit': {
+    name:'Engine Unit', category:'assembling', time:10,
+    ingredients:[{item:'steel-plate',amount:1},{item:'iron-gear-wheel',amount:1},{item:'pipe',amount:2}],
+    products:[{item:'engine-unit',amount:1}]
+  },
+  'electric-engine-unit': {
+    name:'Electric Engine Unit', category:'assembling', time:10,
+    ingredients:[{item:'engine-unit',amount:1},{item:'electronic-circuit',amount:2},{item:'lubricant',amount:15}],
+    products:[{item:'electric-engine-unit',amount:1}]
+  },
+  'flying-robot-frame': {
+    name:'Flying Robot Frame', category:'assembling', time:20,
+    ingredients:[{item:'electric-engine-unit',amount:1},{item:'battery',amount:2},{item:'steel-plate',amount:1},{item:'electronic-circuit',amount:3}],
+    products:[{item:'flying-robot-frame',amount:1}]
+  },
+  'low-density-structure': {
+    name:'Low Density Structure', category:'assembling', time:20,
+    ingredients:[{item:'steel-plate',amount:2},{item:'copper-plate',amount:20},{item:'plastic-bar',amount:5}],
+    products:[{item:'low-density-structure',amount:1}]
+  },
+  'rocket-control-unit': {
+    name:'Rocket Control Unit', category:'assembling', time:30,
+    ingredients:[{item:'processing-unit',amount:1},{item:'speed-module-1',amount:1}],
+    products:[{item:'rocket-control-unit',amount:1}]
+  },
+  'concrete': {
+    name:'Concrete', category:'assembling', time:10,
+    ingredients:[{item:'stone-brick',amount:5},{item:'iron-ore',amount:1},{item:'water',amount:100}],
+    products:[{item:'concrete',amount:10}]
+  },
+
+  // ── TRANSPORT ──────────────────────────────────────────────
+  'transport-belt': {
+    name:'Transport Belt', category:'assembling', time:0.5,
+    ingredients:[{item:'iron-plate',amount:1},{item:'iron-gear-wheel',amount:1}],
+    products:[{item:'transport-belt',amount:2}]
+  },
+  'fast-transport-belt': {
+    name:'Fast Transport Belt', category:'assembling', time:0.5,
+    ingredients:[{item:'iron-gear-wheel',amount:5},{item:'transport-belt',amount:1}],
+    products:[{item:'fast-transport-belt',amount:1}]
+  },
+  'express-transport-belt': {
+    name:'Express Transport Belt', category:'assembling', time:0.5,
+    ingredients:[{item:'iron-gear-wheel',amount:10},{item:'fast-transport-belt',amount:1},{item:'lubricant',amount:20}],
+    products:[{item:'express-transport-belt',amount:1}]
+  },
+  'turbo-transport-belt': {
+    name:'Turbo Transport Belt', category:'assembling', time:0.5,
+    ingredients:[{item:'tungsten-plate',amount:5},{item:'express-transport-belt',amount:1}],
+    products:[{item:'turbo-transport-belt',amount:1}]
+  },
+  'underground-belt': {
+    name:'Underground Belt', category:'assembling', time:1,
+    ingredients:[{item:'iron-plate',amount:10},{item:'transport-belt',amount:5}],
+    products:[{item:'underground-belt',amount:2}]
+  },
+  'splitter': {
+    name:'Splitter', category:'assembling', time:1,
+    ingredients:[{item:'iron-plate',amount:5},{item:'electronic-circuit',amount:5},{item:'transport-belt',amount:4}],
+    products:[{item:'splitter',amount:1}]
+  },
+  'inserter': {
+    name:'Inserter', category:'assembling', time:0.5,
+    ingredients:[{item:'iron-plate',amount:1},{item:'iron-gear-wheel',amount:1},{item:'electronic-circuit',amount:1}],
+    products:[{item:'inserter',amount:1}]
+  },
+  'fast-inserter': {
+    name:'Fast Inserter', category:'assembling', time:0.5,
+    ingredients:[{item:'iron-plate',amount:2},{item:'electronic-circuit',amount:2},{item:'inserter',amount:1}],
+    products:[{item:'fast-inserter',amount:1}]
+  },
+  'stack-inserter': {
+    name:'Stack Inserter', category:'assembling', time:0.5,
+    ingredients:[{item:'iron-plate',amount:15},{item:'electronic-circuit',amount:15},{item:'advanced-circuit',amount:1},{item:'fast-inserter',amount:1}],
+    products:[{item:'stack-inserter',amount:1}]
+  },
+  'bulk-inserter': {
+    name:'Bulk Inserter', category:'assembling', time:0.5,
+    ingredients:[{item:'processing-unit',amount:5},{item:'stack-inserter',amount:5}],
+    products:[{item:'bulk-inserter',amount:1}]
+  },
+
+  // ── BUILDINGS ──────────────────────────────────────────────
+  'stone-furnace': {
+    name:'Stone Furnace', category:'assembling', time:0.5,
+    ingredients:[{item:'stone',amount:5}],
+    products:[{item:'stone-furnace',amount:1}]
+  },
+  'steel-furnace': {
+    name:'Steel Furnace', category:'assembling', time:3,
+    ingredients:[{item:'steel-plate',amount:6},{item:'stone-brick',amount:10}],
+    products:[{item:'steel-furnace',amount:1}]
+  },
+  'electric-furnace': {
+    name:'Electric Furnace', category:'assembling', time:5,
+    ingredients:[{item:'steel-plate',amount:10},{item:'advanced-circuit',amount:5},{item:'stone-brick',amount:10}],
+    products:[{item:'electric-furnace',amount:1}]
+  },
+  'assembling-machine-1': {
+    name:'Assembling Machine 1', category:'assembling', time:0.5,
+    ingredients:[{item:'iron-plate',amount:9},{item:'iron-gear-wheel',amount:5},{item:'electronic-circuit',amount:3}],
+    products:[{item:'assembling-machine-1',amount:1}]
+  },
+  'assembling-machine-2': {
+    name:'Assembling Machine 2', category:'assembling', time:0.5,
+    ingredients:[{item:'iron-plate',amount:2},{item:'assembling-machine-1',amount:1},{item:'steel-plate',amount:3},{item:'electronic-circuit',amount:3},{item:'iron-gear-wheel',amount:5}],
+    products:[{item:'assembling-machine-2',amount:1}]
+  },
+  'assembling-machine-3': {
+    name:'Assembling Machine 3', category:'assembling', time:0.5,
+    ingredients:[{item:'assembling-machine-2',amount:2},{item:'advanced-circuit',amount:4},{item:'speed-module-1',amount:4}],
+    products:[{item:'assembling-machine-3',amount:1}]
+  },
+  'chemical-plant': {
+    name:'Chemical Plant', category:'assembling', time:5,
+    ingredients:[{item:'steel-plate',amount:5},{item:'iron-gear-wheel',amount:5},{item:'electronic-circuit',amount:5},{item:'pipe',amount:5}],
+    products:[{item:'chemical-plant',amount:1}]
+  },
+  'oil-refinery': {
+    name:'Oil Refinery', category:'assembling', time:8,
+    ingredients:[{item:'steel-plate',amount:15},{item:'iron-gear-wheel',amount:10},{item:'electronic-circuit',amount:10},{item:'pipe',amount:10},{item:'stone-brick',amount:10}],
+    products:[{item:'oil-refinery',amount:1}]
+  },
+  'centrifuge': {
+    name:'Centrifuge', category:'assembling', time:4,
+    ingredients:[{item:'steel-plate',amount:50},{item:'iron-gear-wheel',amount:100},{item:'advanced-circuit',amount:100},{item:'concrete',amount:50}],
+    products:[{item:'centrifuge',amount:1}]
+  },
+  'rocket-silo': {
+    name:'Rocket Silo', category:'assembling', time:30,
+    ingredients:[{item:'steel-plate',amount:1000},{item:'processing-unit',amount:200},{item:'pipe',amount:100},{item:'concrete',amount:1000}],
+    products:[{item:'rocket-silo',amount:1}]
+  },
+  'electric-mining-drill': {
+    name:'Electric Mining Drill', category:'assembling', time:2,
+    ingredients:[{item:'iron-plate',amount:10},{item:'iron-gear-wheel',amount:5},{item:'electronic-circuit',amount:3}],
+    products:[{item:'electric-mining-drill',amount:1}]
+  },
+  'pumpjack': {
+    name:'Pumpjack', category:'assembling', time:5,
+    ingredients:[{item:'steel-plate',amount:5},{item:'iron-gear-wheel',amount:10},{item:'pipe',amount:10},{item:'electronic-circuit',amount:5}],
+    products:[{item:'pumpjack',amount:1}]
+  },
+  'lab': {
+    name:'Lab', category:'assembling', time:2,
+    ingredients:[{item:'iron-gear-wheel',amount:10},{item:'electronic-circuit',amount:10},{item:'transport-belt',amount:4}],
+    products:[{item:'lab',amount:1}]
+  },
+  'roboport': {
+    name:'Roboport', category:'assembling', time:5,
+    ingredients:[{item:'steel-plate',amount:45},{item:'iron-gear-wheel',amount:45},{item:'advanced-circuit',amount:45}],
+    products:[{item:'roboport',amount:1}]
+  },
+  'logistic-robot': {
+    name:'Logistic Robot', category:'assembling', time:0.5,
+    ingredients:[{item:'flying-robot-frame',amount:1},{item:'advanced-circuit',amount:2}],
+    products:[{item:'logistic-robot',amount:1}]
+  },
+  'construction-robot': {
+    name:'Construction Robot', category:'assembling', time:0.5,
+    ingredients:[{item:'flying-robot-frame',amount:1},{item:'electronic-circuit',amount:2}],
+    products:[{item:'construction-robot',amount:1}]
+  },
+  'accumulator': {
+    name:'Accumulator', category:'assembling', time:10,
+    ingredients:[{item:'iron-plate',amount:2},{item:'battery',amount:5}],
+    products:[{item:'accumulator',amount:1}]
+  },
+  'solar-panel': {
+    name:'Solar Panel', category:'assembling', time:10,
+    ingredients:[{item:'steel-plate',amount:5},{item:'electronic-circuit',amount:15},{item:'copper-plate',amount:5}],
+    products:[{item:'solar-panel',amount:1}]
+  },
+  'radar': {
+    name:'Radar', category:'assembling', time:0.5,
+    ingredients:[{item:'iron-plate',amount:10},{item:'iron-gear-wheel',amount:5},{item:'electronic-circuit',amount:5}],
+    products:[{item:'radar',amount:1}]
+  },
+  'boiler': {
+    name:'Boiler', category:'assembling', time:0.5,
+    ingredients:[{item:'iron-plate',amount:4},{item:'stone-furnace',amount:1},{item:'pipe',amount:1}],
+    products:[{item:'boiler',amount:1}]
+  },
+  'steam-engine': {
+    name:'Steam Engine', category:'assembling', time:0.5,
+    ingredients:[{item:'iron-plate',amount:10},{item:'iron-gear-wheel',amount:8},{item:'pipe',amount:5}],
+    products:[{item:'steam-engine',amount:1}]
+  },
+  'steam-turbine': {
+    name:'Steam Turbine', category:'assembling', time:3,
+    ingredients:[{item:'iron-gear-wheel',amount:50},{item:'copper-plate',amount:50},{item:'pipe',amount:20}],
+    products:[{item:'steam-turbine',amount:1}]
+  },
+  'nuclear-reactor': {
+    name:'Nuclear Reactor', category:'assembling', time:8,
+    ingredients:[{item:'steel-plate',amount:500},{item:'advanced-circuit',amount:500},{item:'copper-plate',amount:500},{item:'concrete',amount:500}],
+    products:[{item:'nuclear-reactor',amount:1}]
+  },
+  'heat-exchanger': {
+    name:'Heat Exchanger', category:'assembling', time:3,
+    ingredients:[{item:'steel-plate',amount:10},{item:'copper-plate',amount:100},{item:'pipe',amount:10}],
+    products:[{item:'heat-exchanger',amount:1}]
+  },
+  'gun-turret': {
+    name:'Gun Turret', category:'assembling', time:8,
+    ingredients:[{item:'iron-plate',amount:20},{item:'copper-plate',amount:10},{item:'iron-gear-wheel',amount:10}],
+    products:[{item:'gun-turret',amount:1}]
+  },
+  'laser-turret': {
+    name:'Laser Turret', category:'assembling', time:20,
+    ingredients:[{item:'steel-plate',amount:20},{item:'electronic-circuit',amount:20},{item:'battery',amount:12}],
+    products:[{item:'laser-turret',amount:1}]
+  },
+
+  // ── MILITARY ───────────────────────────────────────────────
+  'iron-chest': {
+    name:'Iron Chest', category:'assembling', time:0.5,
+    ingredients:[{item:'iron-plate',amount:8}],
+    products:[{item:'iron-chest',amount:1}]
+  },
+  'steel-chest': {
+    name:'Steel Chest', category:'assembling', time:0.5,
+    ingredients:[{item:'steel-plate',amount:8}],
+    products:[{item:'steel-chest',amount:1}]
+  },
+  'stone-wall': {
+    name:'Stone Wall', category:'assembling', time:0.5,
+    ingredients:[{item:'stone-brick',amount:5}],
+    products:[{item:'stone-wall',amount:1}]
+  },
+  'firearm-magazine': {
+    name:'Firearm Magazine', category:'assembling', time:1,
+    ingredients:[{item:'iron-plate',amount:4}],
+    products:[{item:'firearm-magazine',amount:1}]
+  },
+  'piercing-rounds-magazine': {
+    name:'Piercing Rounds Magazine', category:'assembling', time:3,
+    ingredients:[{item:'copper-plate',amount:5},{item:'steel-plate',amount:1},{item:'firearm-magazine',amount:1}],
+    products:[{item:'piercing-rounds-magazine',amount:1}]
+  },
+  'grenade': {
+    name:'Grenade', category:'assembling', time:8,
+    ingredients:[{item:'iron-plate',amount:5},{item:'coal',amount:10}],
+    products:[{item:'grenade',amount:1}]
+  },
+
+  // ── MODULES ────────────────────────────────────────────────
+  'speed-module-1': {
+    name:'Speed Module 1', category:'assembling', time:15,
+    ingredients:[{item:'electronic-circuit',amount:5},{item:'advanced-circuit',amount:5}],
+    products:[{item:'speed-module-1',amount:1}]
+  },
+  'efficiency-module-1': {
+    name:'Efficiency Module 1', category:'assembling', time:15,
+    ingredients:[{item:'electronic-circuit',amount:5},{item:'advanced-circuit',amount:5}],
+    products:[{item:'efficiency-module-1',amount:1}]
+  },
+  'productivity-module-1': {
+    name:'Productivity Module 1', category:'assembling', time:15,
+    ingredients:[{item:'electronic-circuit',amount:5},{item:'advanced-circuit',amount:5}],
+    products:[{item:'productivity-module-1',amount:1}]
+  },
+  'speed-module-2': {
+    name:'Speed Module 2', category:'assembling', time:30,
+    ingredients:[{item:'speed-module-1',amount:4},{item:'advanced-circuit',amount:5},{item:'processing-unit',amount:5}],
+    products:[{item:'speed-module-2',amount:1}]
+  },
+  'speed-module-3': {
+    name:'Speed Module 3', category:'assembling', time:60,
+    ingredients:[{item:'speed-module-2',amount:5},{item:'advanced-circuit',amount:5},{item:'processing-unit',amount:5}],
+    products:[{item:'speed-module-3',amount:1}]
+  },
+  'productivity-module-2': {
+    name:'Productivity Module 2', category:'assembling', time:30,
+    ingredients:[{item:'productivity-module-1',amount:4},{item:'advanced-circuit',amount:5},{item:'processing-unit',amount:5}],
+    products:[{item:'productivity-module-2',amount:1}]
+  },
+  'productivity-module-3': {
+    name:'Productivity Module 3', category:'assembling', time:60,
+    ingredients:[{item:'productivity-module-2',amount:5},{item:'advanced-circuit',amount:5},{item:'processing-unit',amount:5}],
+    products:[{item:'productivity-module-3',amount:1}]
+  },
+
+  // ── CHEMISTRY ──────────────────────────────────────────────
+  'plastic-bar': {
+    name:'Plastic Bar', category:'chemistry', time:1,
+    ingredients:[{item:'petroleum-gas',amount:20},{item:'coal',amount:1}],
+    products:[{item:'plastic-bar',amount:2}]
+  },
+  'sulfur': {
+    name:'Sulfur', category:'chemistry', time:1,
+    ingredients:[{item:'petroleum-gas',amount:30},{item:'water',amount:30}],
+    products:[{item:'sulfur',amount:2}]
+  },
+  'sulfuric-acid': {
+    name:'Sulfuric Acid', category:'chemistry', time:1,
+    ingredients:[{item:'iron-plate',amount:1},{item:'sulfur',amount:5},{item:'water',amount:100}],
+    products:[{item:'sulfuric-acid',amount:50}], isFluid:true
+  },
+  'explosives': {
+    name:'Explosives', category:'chemistry', time:4,
+    ingredients:[{item:'coal',amount:1},{item:'sulfur',amount:1},{item:'water',amount:10}],
+    products:[{item:'explosives',amount:2}]
+  },
+  'battery': {
+    name:'Battery', category:'chemistry', time:4,
+    ingredients:[{item:'iron-plate',amount:1},{item:'copper-plate',amount:1},{item:'sulfuric-acid',amount:20}],
+    products:[{item:'battery',amount:1}]
+  },
+  'lubricant': {
+    name:'Lubricant', category:'chemistry', time:1,
+    ingredients:[{item:'heavy-oil',amount:10}],
+    products:[{item:'lubricant',amount:10}], isFluid:true
+  },
+  'solid-fuel': {
+    name:'Solid Fuel', category:'chemistry', time:2,
+    ingredients:[{item:'light-oil',amount:10}],
+    products:[{item:'solid-fuel',amount:1}]
+  },
+  'rocket-fuel': {
+    name:'Rocket Fuel', category:'assembling', time:30,
+    ingredients:[{item:'solid-fuel',amount:10},{item:'light-oil',amount:10}],
+    products:[{item:'rocket-fuel',amount:1}]
+  },
+  'nuclear-fuel': {
+    name:'Nuclear Fuel', category:'centrifuging', time:90,
+    ingredients:[{item:'uranium-235',amount:1},{item:'iron-plate',amount:1}],
+    products:[{item:'nuclear-fuel',amount:1}]
+  },
+
+  // ── OIL PROCESSING ─────────────────────────────────────────
+  // Simplified: each oil product has its own entry derived from advanced oil processing.
+  // The calculator treats each independently (slight overcounting of crude-oil is expected).
+  'petroleum-gas': {
+    name:'Petroleum Gas (adv. oil)', category:'oilProcessing', time:5, isFluid:true,
+    ingredients:[{item:'crude-oil',amount:100},{item:'water',amount:50}],
+    products:[{item:'petroleum-gas',amount:55}]
+  },
+  'heavy-oil': {
+    name:'Heavy Oil (adv. oil)', category:'oilProcessing', time:5, isFluid:true,
+    ingredients:[{item:'crude-oil',amount:100},{item:'water',amount:50}],
+    products:[{item:'heavy-oil',amount:25}]
+  },
+  'light-oil': {
+    name:'Light Oil (adv. oil)', category:'oilProcessing', time:5, isFluid:true,
+    ingredients:[{item:'crude-oil',amount:100},{item:'water',amount:50}],
+    products:[{item:'light-oil',amount:45}]
+  },
+
+  // ── URANIUM ────────────────────────────────────────────────
+  'uranium-235': {
+    name:'Uranium-235', category:'centrifuging', time:12,
+    ingredients:[{item:'uranium-ore',amount:10},{item:'sulfuric-acid',amount:25}],
+    products:[{item:'uranium-235',amount:0.007},{item:'uranium-238',amount:0.993}]
+  },
+  'uranium-238': {
+    name:'Uranium-238', category:'centrifuging', time:12,
+    ingredients:[{item:'uranium-ore',amount:10},{item:'sulfuric-acid',amount:25}],
+    products:[{item:'uranium-238',amount:0.993}]
+  },
+  'uranium-fuel-cell': {
+    name:'Uranium Fuel Cell', category:'assembling', time:10,
+    ingredients:[{item:'uranium-235',amount:1},{item:'uranium-238',amount:19},{item:'iron-plate',amount:10}],
+    products:[{item:'uranium-fuel-cell',amount:10}]
+  },
+
+  // ── ROCKET / SPACE ─────────────────────────────────────────
+  'satellite': {
+    name:'Satellite', category:'assembling', time:3,
+    ingredients:[{item:'processing-unit',amount:100},{item:'low-density-structure',amount:100},{item:'rocket-fuel',amount:50},{item:'solar-panel',amount:100},{item:'accumulator',amount:100},{item:'radar',amount:5}],
+    products:[{item:'satellite',amount:1}]
+  },
+  'cargo-rocket-section': {
+    name:'Cargo Rocket Section', category:'assembling', time:3,
+    ingredients:[{item:'low-density-structure',amount:10},{item:'rocket-fuel',amount:10},{item:'rocket-control-unit',amount:10}],
+    products:[{item:'cargo-rocket-section',amount:1}]
+  },
+
+  // ── SCIENCE PACKS ──────────────────────────────────────────
+  'automation-science-pack': {
+    name:'Automation Science Pack', category:'assembling', time:5,
+    ingredients:[{item:'copper-plate',amount:1},{item:'iron-gear-wheel',amount:1}],
+    products:[{item:'automation-science-pack',amount:1}]
+  },
+  'logistic-science-pack': {
+    name:'Logistic Science Pack', category:'assembling', time:6,
+    ingredients:[{item:'inserter',amount:1},{item:'transport-belt',amount:1}],
+    products:[{item:'logistic-science-pack',amount:1}]
+  },
+  'military-science-pack': {
+    name:'Military Science Pack', category:'assembling', time:10,
+    ingredients:[{item:'piercing-rounds-magazine',amount:1},{item:'grenade',amount:1},{item:'stone-wall',amount:2}],
+    products:[{item:'military-science-pack',amount:2}]
+  },
+  'chemical-science-pack': {
+    name:'Chemical Science Pack', category:'assembling', time:24,
+    ingredients:[{item:'sulfur',amount:1},{item:'advanced-circuit',amount:3},{item:'engine-unit',amount:2}],
+    products:[{item:'chemical-science-pack',amount:2}]
+  },
+  'production-science-pack': {
+    name:'Production Science Pack', category:'assembling', time:21,
+    ingredients:[{item:'electric-mining-drill',amount:1},{item:'electric-furnace',amount:1}],
+    products:[{item:'production-science-pack',amount:3}]
+  },
+  'utility-science-pack': {
+    name:'Utility Science Pack', category:'assembling', time:21,
+    ingredients:[{item:'flying-robot-frame',amount:1},{item:'low-density-structure',amount:3},{item:'processing-unit',amount:2}],
+    products:[{item:'utility-science-pack',amount:3}]
+  },
+  'space-science-pack': {
+    name:'Space Science Pack', category:'rocket', time:40.33,
+    ingredients:[{item:'satellite',amount:1},{item:'rocket-fuel',amount:100},{item:'low-density-structure',amount:100},{item:'rocket-control-unit',amount:100}],
+    products:[{item:'space-science-pack',amount:1000}]
+  },
+
+  // ── SPACE AGE – VULCANUS ───────────────────────────────────
+  'tungsten-carbide': {
+    name:'Tungsten Carbide', category:'assembling', time:5,
+    ingredients:[{item:'tungsten-plate',amount:2},{item:'coal',amount:1}],
+    products:[{item:'tungsten-carbide',amount:2}]
+  },
+  'metallurgic-science-pack': {
+    name:'Metallurgic Science Pack', category:'assembling', time:10,
+    ingredients:[{item:'tungsten-carbide',amount:2},{item:'sulfuric-acid',amount:10},{item:'calcite',amount:1}],
+    products:[{item:'metallurgic-science-pack',amount:1}]
+  },
+
+  // ── SPACE AGE – FULGORA ────────────────────────────────────
+  'holmium-plate': {
+    name:'Holmium Plate', category:'emPlant', time:5,
+    ingredients:[{item:'holmium-ore',amount:2},{item:'sulfuric-acid',amount:10}],
+    products:[{item:'holmium-plate',amount:1}]
+  },
+  'superconductor': {
+    name:'Superconductor', category:'assembling', time:5,
+    ingredients:[{item:'holmium-plate',amount:1},{item:'plastic-bar',amount:2},{item:'copper-cable',amount:8}],
+    products:[{item:'superconductor',amount:1}]
+  },
+  'electromagnetic-science-pack': {
+    name:'Electromagnetic Science Pack', category:'emPlant', time:10,
+    ingredients:[{item:'holmium-plate',amount:2},{item:'superconductor',amount:1},{item:'accumulator',amount:1}],
+    products:[{item:'electromagnetic-science-pack',amount:1}]
+  },
+
+  // ── SPACE AGE – GLEBA ──────────────────────────────────────
+  'jelly': {
+    name:'Jelly', category:'biochamber', time:5,
+    ingredients:[{item:'jellynut',amount:5}],
+    products:[{item:'jelly',amount:2}]
+  },
+  'yumako-mash': {
+    name:'Yumako Mash', category:'biochamber', time:5,
+    ingredients:[{item:'yumako',amount:5}],
+    products:[{item:'yumako-mash',amount:2}]
+  },
+  'bioflux': {
+    name:'Bioflux', category:'biochamber', time:8,
+    ingredients:[{item:'jelly',amount:1},{item:'yumako-mash',amount:1}],
+    products:[{item:'bioflux',amount:1}]
+  },
+  'agricultural-science-pack': {
+    name:'Agricultural Science Pack', category:'biochamber', time:10,
+    ingredients:[{item:'bioflux',amount:2},{item:'jelly',amount:2},{item:'yumako-mash',amount:2}],
+    products:[{item:'agricultural-science-pack',amount:1}]
+  },
+
+  // ── SPACE AGE – AQUILO ─────────────────────────────────────
+  'lithium': {
+    name:'Lithium', category:'cryoPlant', time:5,
+    ingredients:[{item:'lithium-brine',amount:10}],
+    products:[{item:'lithium',amount:1}]
+  },
+  'fluoroketone-cold': {
+    name:'Fluoroketone (Cold)', category:'cryoPlant', time:5, isFluid:true,
+    ingredients:[{item:'ammonia',amount:10},{item:'fluorine',amount:5}],
+    products:[{item:'fluoroketone-cold',amount:5}]
+  },
+  'cryogenic-science-pack': {
+    name:'Cryogenic Science Pack', category:'cryoPlant', time:15,
+    ingredients:[{item:'lithium',amount:2},{item:'fluoroketone-cold',amount:5},{item:'superconductor',amount:1},{item:'ice',amount:5}],
+    products:[{item:'cryogenic-science-pack',amount:1}]
+  },
+
+  // ── PROMETHIUM (Space) ─────────────────────────────────────
+  'promethium-science-pack': {
+    name:'Promethium Science Pack', category:'assembling', time:15,
+    ingredients:[{item:'promethium-asteroid-chunk',amount:1},{item:'processing-unit',amount:3}],
+    products:[{item:'promethium-science-pack',amount:1}]
+  },
+};
+
+// ============================================================
+//  STATE
+// ============================================================
+const rawInputs = new Set();
+let currentItemId = null;
+
+// ============================================================
+//  AUTOCOMPLETE HELPER
+// ============================================================
+const craftable = Object.entries(R)
+  .filter(([,v]) => !v.raw)
+  .map(([id,v]) => ({ id, name: v.name }))
+  .sort((a,b) => a.name.localeCompare(b.name));
+
+function setupAC(inputEl, dropEl, onSelect) {
+  function show(q) {
+    const matches = craftable.filter(i =>
+      i.name.toLowerCase().includes(q) || i.id.includes(q)
+    ).slice(0, 16);
+    if (!matches.length) { dropEl.style.display='none'; return; }
+    dropEl.innerHTML = matches.map(i =>
+      `<div class="ac-opt" data-id="${i.id}" data-name="${escHtml(i.name)}">${escHtml(i.name)}</div>`
+    ).join('');
+    dropEl.style.display = 'block';
+    dropEl.querySelectorAll('.ac-opt').forEach(el => el.addEventListener('click', () => {
+      onSelect(el.dataset.id, el.dataset.name);
+      dropEl.style.display = 'none';
+      inputEl.value = '';
+    }));
+  }
+  inputEl.addEventListener('input', () => {
+    const q = inputEl.value.trim().toLowerCase();
+    q ? show(q) : (dropEl.style.display = 'none');
+  });
+  document.addEventListener('click', e => {
+    if (!inputEl.contains(e.target) && !dropEl.contains(e.target)) dropEl.style.display='none';
+  });
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+setupAC(
+  document.getElementById('itemInput'),
+  document.getElementById('itemDrop'),
+  (id, name) => {
+    currentItemId = id;
+    document.getElementById('itemInput').value = name;
+    document.getElementById('itemId').value = id;
+  }
+);
+
+setupAC(
+  document.getElementById('rawInput'),
+  document.getElementById('rawDrop'),
+  (id) => {
+    rawInputs.add(id);
+    renderRawTags();
+  }
+);
+
+function renderRawTags() {
+  document.getElementById('rawTags').innerHTML = [...rawInputs].map(id => {
+    const name = R[id] ? R[id].name : id;
+    return `<span class="tag" onclick="rawInputs.delete('${id}');renderRawTags()">${escHtml(name)} ✕</span>`;
+  }).join('');
+}
+
+// ============================================================
+//  CALCULATION ENGINE
+// ============================================================
+function getOutputAmount(recipe, itemId) {
+  const p = recipe.products.find(p => p.item === itemId);
+  return p ? p.amount : 1;
+}
+
+function calculate() {
+  // Resolve item id
+  let itemId = document.getElementById('itemId').value;
+  if (!itemId) {
+    const typed = document.getElementById('itemInput').value.trim().toLowerCase();
+    const found = craftable.find(i => i.name.toLowerCase() === typed || i.id === typed);
+    if (found) itemId = found.id;
+    else { alert('Please select an item from the dropdown.'); return; }
+  }
+
+  const rawRate = parseFloat(document.getElementById('rate').value) || 1;
+  const rateUnit = parseFloat(document.getElementById('rateUnit').value); // items per rateUnit seconds
+  const targetPerSec = rawRate / rateUnit;
+
+  // ── aggregate demands (items/sec) ──
+  const demands = {}; // itemId → items/sec needed
+
+  function traverse(id, perSec) {
+    const recipe = R[id];
+    const isRaw = !recipe || recipe.raw || rawInputs.has(id);
+    demands[id] = (demands[id] || 0) + perSec;
+    if (isRaw) return;
+
+    const outAmt = getOutputAmount(recipe, id);
+    const craftsPerSec = perSec / outAmt;
+    for (const ing of recipe.ingredients) {
+      traverse(ing.item, ing.amount * craftsPerSec);
+    }
+  }
+
+  traverse(itemId, targetPerSec);
+
+  // ── build result rows ──
+  const machineRows = [];
+  const rawMats = {};
+  let totalKW = 0;
+
+  for (const [id, perSec] of Object.entries(demands)) {
+    const recipe = R[id];
+    if (!recipe || recipe.raw || rawInputs.has(id)) {
+      rawMats[id] = (rawMats[id] || 0) + perSec;
+      continue;
+    }
+    const machine = getMachine(recipe.category);
+    const outAmt = getOutputAmount(recipe, id);
+    const craftsPerSec = perSec / outAmt;
+    const machinesNeeded = craftsPerSec * (recipe.time / machine.speed);
+    const powerKW = machinesNeeded * machine.power;
+    totalKW += powerKW;
+
+    // per-machine output rate (for inserter check)
+    const perMachineOutputRate = (outAmt / recipe.time) * machine.speed;
+
+    machineRows.push({ id, name: recipe.name, perSec, machinesNeeded, machineName: machine.name, powerKW, isFluid: !!(recipe.isFluid), category: recipe.category, perMachineOutputRate });
+  }
+
+  machineRows.sort((a,b) => {
+    if (a.id === itemId) return -1;
+    if (b.id === itemId) return 1;
+    return b.machinesNeeded - a.machinesNeeded;
+  });
+
+  renderResults(itemId, targetPerSec, rawRate, rateUnit, rawMats, machineRows, totalKW);
+}
+
+// ============================================================
+//  RENDERING
+// ============================================================
+function fmtPow(kw) {
+  return kw >= 1000 ? `${(kw/1000).toFixed(2)} MW` : `${kw.toFixed(1)} kW`;
+}
+function fmtRate(perSec, isFluid) {
+  if (isFluid) return `${(perSec).toFixed(2)}/s`;
+  const pm = perSec * 60;
+  return `${pm % 1 === 0 ? pm.toFixed(0) : pm.toFixed(2)}/min`;
+}
+
+function renderResults(targetId, targetPerSec, rawRate, rateUnit, rawMats, rows, totalKW) {
+  const beltCap = parseFloat(document.getElementById('selBelt').value);
+  const inserterCap = parseFloat(document.getElementById('selInserter').value);
+  const beltName = document.getElementById('selBelt').selectedOptions[0].text.split(' —')[0];
+
+  const totalMachines = rows.reduce((s,r) => s + Math.ceil(r.machinesNeeded), 0);
+  const unitLabel = rateUnit === 1 ? 'sec' : rateUnit === 60 ? 'min' : 'hr';
+
+  let html = `
+    <div class="cards">
+      <div class="card"><div class="lbl">Target</div><div class="val">${rawRate % 1 === 0 ? rawRate : rawRate.toFixed(2)}<span class="unit">/${unitLabel}</span></div></div>
+      <div class="card"><div class="lbl">Total Machines</div><div class="val">${totalMachines}<span class="unit">bldgs</span></div></div>
+      <div class="card"><div class="lbl">Total Power</div><div class="val">${fmtPow(totalKW)}</div></div>
+      <div class="card"><div class="lbl">Recipe Steps</div><div class="val">${rows.length}<span class="unit">items</span></div></div>
+    </div>
+  `;
+
+  // ── Production lines table ──
+  html += `<div class="tbl-wrap"><div class="tbl-head">Production Lines</div><table>
+    <thead><tr>
+      <th>Item</th><th>Rate</th><th>Machines (exact)</th><th>Buildings</th><th>Power</th><th>Belt Load</th><th>Inserter</th>
+    </tr></thead><tbody>`;
+
+  for (const row of rows) {
+    const exactStr = row.machinesNeeded.toFixed(3);
+    const ceil = Math.ceil(row.machinesNeeded);
+    const util = ((row.machinesNeeded / ceil) * 100).toFixed(0);
+
+    // Belt load
+    let beltCell;
+    if (row.isFluid) {
+      beltCell = `<span style="color:var(--dim)">fluid pipe</span>`;
+    } else {
+      const pct = (row.perSec / beltCap * 100);
+      const beltsNeeded = Math.ceil(pct / 100);
+      if (pct <= 70) beltCell = `<span class="ok">✓ ${pct.toFixed(0)}%</span>`;
+      else if (pct <= 100) beltCell = `<span class="warn">⚠ ${pct.toFixed(0)}%</span>`;
+      else beltCell = `<span class="over">✗ ${beltsNeeded}× ${beltName}</span>`;
+    }
+
+    // Inserter check — output rate per machine vs inserter cap
+    let insCell;
+    if (row.isFluid) {
+      insCell = `<span style="color:var(--dim)">—</span>`;
+    } else {
+      const ins = row.perMachineOutputRate;
+      if (ins <= inserterCap) insCell = `<span class="ok">✓ ${ins.toFixed(2)}/s</span>`;
+      else insCell = `<span class="over">✗ ${ins.toFixed(2)}/s</span>`;
+    }
+
+    html += `<tr>
+      <td>${escHtml(row.name)}<span class="badge">${escHtml(row.machineName)}</span></td>
+      <td>${fmtRate(row.perSec, row.isFluid)}</td>
+      <td><span class="cnt">${exactStr}</span></td>
+      <td>${ceil} <span style="color:var(--dim);font-size:11px">(${util}% util)</span></td>
+      <td>${fmtPow(row.powerKW)}</td>
+      <td>${beltCell}</td>
+      <td>${insCell}</td>
+    </tr>`;
+  }
+  html += `</tbody></table></div>`;
+
+  // ── Raw materials ──
+  html += `<div class="tbl-wrap"><div class="tbl-head">Raw Material Inputs</div>`;
+  const sortedRaw = Object.entries(rawMats).sort((a,b) => b[1]-a[1]);
+  for (const [id, perSec] of sortedRaw) {
+    const rec = R[id];
+    const name = rec ? rec.name : id;
+    const isFluid = rec && rec.isFluid;
+
+    let beltNote = '';
+    if (!isFluid) {
+      const pct = perSec / beltCap * 100;
+      const beltsNeeded = Math.ceil(pct / 100);
+      if (pct <= 70) beltNote = `<span class="ok" style="font-size:11px;margin-left:8px">✓ ${pct.toFixed(0)}% of ${beltName}</span>`;
+      else if (pct <= 100) beltNote = `<span class="warn" style="font-size:11px;margin-left:8px">⚠ ${pct.toFixed(0)}% of ${beltName}</span>`;
+      else beltNote = `<span class="over" style="font-size:11px;margin-left:8px">✗ ${beltsNeeded}× ${beltName}</span>`;
+    }
+
+    html += `<div class="raw-row">
+      <span>${escHtml(name)}${beltNote}</span>
+      <span class="raw-rate">${fmtRate(perSec, isFluid)}</span>
+    </div>`;
+  }
+
+  const hasOil = sortedRaw.some(([id]) => ['petroleum-gas','heavy-oil','light-oil'].includes(id));
+  if (hasOil) {
+    html += `<div class="note">⚠ Oil products are calculated independently per output stream. Crude oil usage may be overcounted if multiple oil products share the same refinery run.</div>`;
+  }
+  html += `</div>`;
+
+  document.getElementById('results').innerHTML = html;
+}
+</script>
+</body>
+</html>
