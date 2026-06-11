@@ -95,7 +95,7 @@ styles["dayclock_progress"] = {
   type = "progressbar_style",
   parent = "progressbar",
   height = 12,
-  horizontally_stretchable = true,
+  horizontally_stretchable = "on",
   color = {r = 1.0, g = 0.85, b = 0.1},
 }
 

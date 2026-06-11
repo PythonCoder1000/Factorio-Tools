@@ -1,6 +1,6 @@
 {
   "name": "DayClockHUD",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "title": "Day Clock HUD",
   "author": "christianjin",
   "description": "Displays current game day, time of day cycle, and total playtime in a polished HUD.",
