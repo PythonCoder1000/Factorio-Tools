@@ -20,31 +20,37 @@ end
 
 -- Returns: day_number, game_clock_str, phase_name, label_color, bar_color
 local function get_display_info(surface)
-  local dt = surface.daytime   -- 0 = midnight, 0.5 = noon
+  -- In Factorio, surface.daytime: 0 = NOON (brightest), 0.5 = MIDNIGHT (darkest).
+  local dt = surface.daytime
 
-  -- Map daytime 0-1 → 24h clock (midnight=00:00, noon=12:00)
-  local raw_h = (dt * 24) % 24
+  -- Map daytime → 24h clock. dt=0 is noon, so offset by 12h:
+  -- dt 0 → 12:00, 0.25 (dusk) → 18:00, 0.5 → 00:00, 0.75 (dawn) → 06:00.
+  local raw_h = (dt * 24 + 12) % 24
   local clock = string.format("%02d:%02d", math.floor(raw_h), math.floor((raw_h % 1) * 60))
 
-  -- Day number from ticks (1-based)
-  local tpd = DEFAULT_DAY_TICKS
+  -- Day number from ticks (1-based). Use the surface's actual day length so it
+  -- stays correct on worlds with non-default day-length settings.
+  local tpd = surface.ticks_per_day or DEFAULT_DAY_TICKS
   local day = math.floor(game.tick / tpd) + 1
 
-  -- Phase buckets based on brightness thresholds
-  -- Roughly: 0–0.2 = night, 0.2–0.3 = dawn, 0.3–0.7 = day, 0.7–0.8 = dusk, 0.8–1 = night
+  -- Phase from the surface's own daylight segments (robust to custom/always-day
+  -- settings). Daylight band wraps through 0: [dawn..1] ∪ [0..dusk] is full day,
+  -- [evening..morning] is full night, the rest is the dusk/dawn transition.
+  local dusk, evening   = surface.dusk, surface.evening
+  local morning, dawn   = surface.morning, surface.dawn
   local phase, lcol, bcol
-  if dt >= 0.3 and dt <= 0.7 then
+  if dt <= dusk or dt >= dawn then
     phase = "Day"
     lcol  = {r = 1.0, g = 0.92, b = 0.28}
     bcol  = {r = 1.0, g = 0.85, b = 0.10}
-  elseif (dt > 0.2 and dt < 0.3) or (dt > 0.7 and dt < 0.8) then
-    phase = "Dusk / Dawn"
-    lcol  = {r = 1.0, g = 0.60, b = 0.20}
-    bcol  = {r = 0.9, g = 0.45, b = 0.05}
-  else
+  elseif dt >= evening and dt <= morning then
     phase = "Night"
     lcol  = {r = 0.50, g = 0.70, b = 1.00}
     bcol  = {r = 0.25, g = 0.45, b = 0.90}
+  else
+    phase = "Dusk / Dawn"
+    lcol  = {r = 1.0, g = 0.60, b = 0.20}
+    bcol  = {r = 0.9, g = 0.45, b = 0.05}
   end
 
   return day, clock, phase, lcol, bcol
@@ -133,12 +139,25 @@ end
 
 -- ── Events ────────────────────────────────────────────────────────────────────
 
+local function rebuild_all()
+  for _, p in pairs(game.players) do
+    local hud = p.gui.top["dayclock_hud"]
+    if hud then hud.destroy() end
+    build_hud(p)
+    refresh_hud(p)
+  end
+end
+
+-- Runs when the mod is first added to a save (new game OR an existing world).
 script.on_init(function()
   for _, p in pairs(game.players) do
     build_hud(p)
     refresh_hud(p)
   end
 end)
+
+-- Runs on mod updates / version changes: rebuild so layout changes take effect.
+script.on_configuration_changed(rebuild_all)
 
 script.on_event(defines.events.on_player_joined_game, function(e)
   local p = game.players[e.player_index]
